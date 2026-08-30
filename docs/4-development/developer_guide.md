@@ -49,14 +49,17 @@ enforced twice:
 
 ## Adding a new public API item
 
-1. Add the type/function under `main/src/api/` (data) or `main/src/saf/`
-   (logic) and re-export it from `lib.rs` if it isn't already covered by a
-   `pub use *`.
+1. New data types go in their own file under `main/src/api/types/` (or
+   `main/src/api/error/` for error types) — one public type per file, named
+   after the type in snake_case — and are re-exported by name (no globs) from
+   `api/mod.rs` and then `lib.rs`. New parsing/validation logic goes in
+   `main/src/saf/parser.rs`; `saf/mod.rs` itself stays a pure re-export.
 2. Document every public item — `#![warn(missing_docs)]` is set crate-wide.
-3. Add a unit test alongside the implementation (in the same module's
-   `#[cfg(test)] mod tests`) and, for anything reachable from the crate root,
-   an integration test in `tests/presentation_contracts_e2e_test.rs` with an
-   `/// @covers: <function_name>` doc comment.
+3. `api/` and `saf/` source files must not contain `#[cfg(test)]` blocks —
+   add a test file under `tests/` instead (e.g. `tests/<type>_int_test.rs`
+   for a new api/ type, or extend `tests/saf_int_test.rs` /
+   `tests/presentation_contracts_e2e_test.rs` for parser behavior), with an
+   `/// @covers: <item_name>` doc comment on each test.
 4. Update [`scm/README.md`](../../scm/README.md)'s API surface table and, if
    the change affects design rationale, [`architecture.md`](../3-design/architecture.md).
 5. Add a `CHANGELOG.md` entry under `[Unreleased]`.

@@ -2,29 +2,35 @@
 
 ## What
 
-`pdf-engine-presentation` is a single library crate with two modules:
+`pdf-engine-presentation` is a single library crate with three modules:
 
-- `api` — pure data types: `Deck`, `Slide`, `SlideElement`, `AspectRatio`,
-  `OverflowPolicy`, `PresentationError`. No logic, no I/O.
-- `saf` — the parser and validator: `parse_markdown` (source text → `Deck`)
-  and `validate_deck` (`Deck` → `Result<(), PresentationError>`).
+- `api` — pure data declarations, one type per file: `api/types/` holds
+  `Deck`, `Slide`, `SlideElement`, `AspectRatio`, `OverflowPolicy`; `api/error/`
+  holds the `PresentationError` enum declaration. No logic, no impls.
+- `core` — the `Display`/`std::error::Error` trait implementations for
+  `PresentationError` (kept out of `api/`, which is declarations-only).
+- `saf` — the parser and validator: `parser.rs` defines `parse_markdown`
+  (source text → `Deck`) and `validate_deck` (`Deck` →
+  `Result<(), PresentationError>`); `saf/mod.rs` itself only re-exports them.
 
-`lib.rs` re-exports both modules' public items, so callers only ever import
+`lib.rs` re-exports the public items from `api`, so callers only ever import
 from the crate root (`pdf_engine_presentation::{parse_markdown, Deck, ...}`),
-never from `api`/`saf` directly — those module names are an internal
+never from `api`/`core`/`saf` directly — those module names are an internal
 organizational detail, not part of the public API.
 
 ```mermaid
 graph TD
     Caller["Caller code"]
-    Lib["lib.rs<br/>pub use api::*<br/>pub use saf::{parse_markdown, validate_deck}"]
-    Api["api module<br/>Deck, Slide, SlideElement,<br/>AspectRatio, OverflowPolicy, PresentationError"]
-    Saf["saf module<br/>parse_markdown, validate_deck"]
+    Lib["lib.rs<br/>pub use api::{...}<br/>pub use saf::{parse_markdown, validate_deck}"]
+    Api["api/types, api/error<br/>Deck, Slide, SlideElement,<br/>AspectRatio, OverflowPolicy, PresentationError"]
+    Core["core<br/>Display / Error impls for PresentationError"]
+    Saf["saf/parser.rs<br/>parse_markdown, validate_deck"]
 
     Caller --> Lib
     Lib --> Api
     Lib --> Saf
     Saf --> Api
+    Core --> Api
 ```
 
 ## Why
@@ -79,8 +85,9 @@ flowchart TD
 
 ## Error handling
 
-`PresentationError` is a plain enum implementing `std::error::Error` and
-`Display` — no `unwrap`/`expect` anywhere in the parser (enforced by
+`PresentationError` is a plain enum declared in `api/error/presentation_error.rs`;
+its `std::error::Error` and `Display` impls live in `core/presentation_error_display.rs`
+so that `api/` stays declarations-only. No `unwrap`/`expect` anywhere in the parser (enforced by
 `#![deny(unsafe_code)]` at the crate level and
 `unwrap_used`/`expect_used = "deny"` lint configuration in `Cargo.toml`).
 Every failure path returns a `PresentationError` variant with enough context

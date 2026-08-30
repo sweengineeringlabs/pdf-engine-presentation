@@ -18,10 +18,14 @@ scm/
 ├── scripts/hooks/   pre-commit (fmt/clippy/test), commit-msg (AI-attribution guard)
 ├── main/src/
 │   ├── lib.rs       crate root — re-exports api::* and saf::{parse_markdown, validate_deck}
-│   ├── api/         Deck/Slide/SlideElement/AspectRatio/OverflowPolicy/PresentationError
-│   └── saf/         parse_markdown, validate_deck, and their unit tests
+│   ├── api/
+│   │   ├── types/   Deck, Slide, SlideElement, AspectRatio, OverflowPolicy — one type per file
+│   │   └── error/   PresentationError (declaration only)
+│   ├── core/        Display/Error trait impls for PresentationError
+│   └── saf/         mod.rs re-exports parser::{parse_markdown, validate_deck}
 ├── examples/        basic — minimal parse_markdown call
-└── tests/           presentation_contracts_e2e_test — public-API integration tests
+└── tests/           one *_int_test.rs per public type, plus saf_int_test.rs and
+                      presentation_contracts_e2e_test.rs for parse_markdown/validate_deck
 ```
 
 ## API surface
