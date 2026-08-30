@@ -1,0 +1,28 @@
+[package]
+name = "pdf-engine-presentation"
+version = "1.9.7"
+edition = "2021"
+license = "MIT"
+rust-version = "1.95"
+authors = ["SWE Engineering Labs"]
+repository = "https://github.com/sweengineeringlabs/pdf-engine-presentation"
+description = "Deterministic, dependency-free Markdown presentation-deck parser and validation contracts"
+keywords = ["presentation", "markdown", "slides", "pdf"]
+categories = ["text-processing"]
+publish = true
+
+[lib]
+name = "pdf_engine_presentation"
+path = "main/src/lib.rs"
+
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[package.metadata.arch]
+application_type = "lib"
+service_type = "presentation"

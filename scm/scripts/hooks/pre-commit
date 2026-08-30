@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Pre-commit hook — fail-fast on first failing check.
+# Installed by bootstrap.sh / bootstrap.ps1 via `git config core.hooksPath scm/scripts/hooks`.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SCM_DIR="$REPO_ROOT/scm"
+
+echo "pre-commit ── pdf-engine-presentation ──"
+cd "$SCM_DIR"
+
+echo "  1/3 fmt..."
+cargo fmt --all -- --check
+
+echo "  2/3 clippy..."
+cargo clippy --all-targets -- -D warnings
+
+echo "  3/3 test..."
+cargo test --all-targets
+
+echo "pre-commit: all checks passed."
