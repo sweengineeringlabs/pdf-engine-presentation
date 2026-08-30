@@ -14,6 +14,19 @@ from the crate root (`pdf_engine_presentation::{parse_markdown, Deck, ...}`),
 never from `api`/`saf` directly — those module names are an internal
 organizational detail, not part of the public API.
 
+```mermaid
+graph TD
+    Caller["Caller code"]
+    Lib["lib.rs<br/>pub use api::*<br/>pub use saf::{parse_markdown, validate_deck}"]
+    Api["api module<br/>Deck, Slide, SlideElement,<br/>AspectRatio, OverflowPolicy, PresentationError"]
+    Saf["saf module<br/>parse_markdown, validate_deck"]
+
+    Caller --> Lib
+    Lib --> Api
+    Lib --> Saf
+    Saf --> Api
+```
+
 ## Why
 
 This crate is extracted from the `pdf-engine` monorepo's
@@ -44,24 +57,24 @@ counts and `\n`-delimited line counts — reproducible across platforms.
 
 ## Module data flow
 
-```
-&str (Markdown source)
-      │
-      ▼
-┌─────────────┐   strips optional front matter (+++ or ---),
-│parse_markdown│   splits on `---` slide markers, tracks fenced-code
-│  (saf/mod.rs)│   and :::notes state machine per line
-└──────┬──────┘
-       │ Result<Deck, PresentationError>
-       ▼
-┌─────────────┐   sums a deterministic per-slide line estimate;
-│validate_deck │   Reject policy fails on overflow, Clip policy
-│  (saf/mod.rs)│   always succeeds
-└──────┬──────┘
-       │ Result<(), PresentationError>
-       ▼
-   caller decides what to do with a validated Deck
-   (e.g. render it — out of scope for this crate)
+```mermaid
+flowchart TD
+    Source["&str (Markdown source)"]
+    Parse["parse_markdown<br/>strips optional front matter (+++ or ---),<br/>splits on --- slide markers, tracks fenced-code<br/>and :::notes state per line"]
+    DeckNode["Deck { title, aspect_ratio, slides, overflow_policy }"]
+    Validate["validate_deck<br/>sums a deterministic per-slide line estimate"]
+    Overflow(["Err(PresentationError::SlideOverflow)"])
+    Valid(["Ok(())"])
+    Render["caller renders the validated Deck<br/>(out of scope for this crate)"]
+    ParseErr(["Err: EmptyDeck / MalformedSource"])
+
+    Source --> Parse
+    Parse -->|"parse error"| ParseErr
+    Parse -->|"parsed"| DeckNode
+    DeckNode --> Validate
+    Validate -->|"overflow_policy = Reject and over budget"| Overflow
+    Validate -->|"overflow_policy = Clip, or within budget"| Valid
+    Valid --> Render
 ```
 
 ## Error handling
