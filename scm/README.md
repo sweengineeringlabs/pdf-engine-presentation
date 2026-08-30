@@ -12,9 +12,8 @@ workflow, see:
 
 ```
 scm/
-├── Cargo.toml       package manifest ([lib] path = main/src/lib.rs)
+├── Cargo.toml       package manifest ([lib] path = main/src/lib.rs, license = "MIT")
 ├── deny.toml        license/advisory policy (cargo deny check --config deny.toml)
-├── LICENSE          MIT
 ├── bootstrap.sh / bootstrap.ps1   installs git hooks, fetches dependencies
 ├── scripts/hooks/   pre-commit (fmt/clippy/test), commit-msg (AI-attribution guard)
 ├── main/src/
