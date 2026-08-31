@@ -8,4 +8,4 @@ mod core;
 mod saf;
 
 pub use api::*;
-pub use saf::{parse_markdown, validate_deck};
+pub use saf::{build_deck_parser, parse_markdown, validate_deck};
