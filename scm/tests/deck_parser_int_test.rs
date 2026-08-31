@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    AspectRatio, Deck, DeckParser, DeckParserFactory, OverflowPolicy, ParseRequest, ParseResponse,
-    PresentationError, Slide, ValidateRequest,
+    AspectRatio, Deck, DeckParser, DeckParserFactory, GetValidatorRequest, OverflowPolicy,
+    ParseRequest, ParseResponse, PresentationError, Slide, ValidateRequest,
 };
 use std::sync::Arc;
 
@@ -30,6 +30,17 @@ impl DeckParser for TestDeckParser {
             return Err(PresentationError::EmptyDeck);
         }
         Ok(())
+    }
+
+    fn validator(
+        &self,
+        _request: GetValidatorRequest,
+    ) -> Result<pdf_engine_presentation::GetValidatorResponse, PresentationError> {
+        // This test double deliberately overrides the default to exercise
+        // the error path: it has no validator of its own to offer.
+        Err(PresentationError::MalformedSource(
+            "test double has no validator configured".to_string(),
+        ))
     }
 }
 
@@ -172,5 +183,65 @@ fn test_factory_is_independent_of_implementor_edge() {
             deck: Arc::new(deck)
         }),
         Ok(())
+    );
+}
+
+/// @covers: DeckParser
+#[test]
+fn test_validator_default_impl_returns_working_validator_happy() {
+    // The default `validator()` implementation (inherited by the real
+    // factory-built parser) must return a Validator that actually validates.
+    let parser = DeckParserFactory.build();
+    let validator = parser
+        .validator(GetValidatorRequest)
+        .unwrap_or_else(|error| panic!("default validator() failed: {error}"))
+        .validator;
+    let deck = Deck {
+        title: "title".to_string(),
+        aspect_ratio: AspectRatio::Widescreen16x9,
+        slides: vec![Slide { elements: vec![] }],
+        overflow_policy: OverflowPolicy::Reject,
+    };
+    assert_eq!(
+        validator.validate(ValidateRequest {
+            deck: Arc::new(deck)
+        }),
+        Ok(())
+    );
+}
+
+/// @covers: DeckParser
+#[test]
+fn test_validator_unavailable_error() {
+    assert!(matches!(
+        TestDeckParser.validator(GetValidatorRequest),
+        Err(PresentationError::MalformedSource(_))
+    ));
+}
+
+/// @covers: DeckParser
+#[test]
+fn test_validator_default_impl_detects_empty_deck_edge() {
+    // The validator returned by the default implementation must apply the
+    // same fixed-canvas rule as DeckParser::validate itself, including on
+    // the boundary case of an empty deck.
+    let parser = DeckParserFactory.build();
+    let validator = parser
+        .validator(GetValidatorRequest)
+        .unwrap_or_else(|error| panic!("default validator() failed: {error}"))
+        .validator;
+    let deck = Deck {
+        title: String::new(),
+        aspect_ratio: AspectRatio::Standard4x3,
+        slides: vec![],
+        overflow_policy: OverflowPolicy::Reject,
+    };
+    assert_eq!(
+        validator.validate(ValidateRequest {
+            deck: Arc::new(deck)
+        }),
+        Err(pdf_engine_presentation::ValidationError {
+            violations: vec!["presentation deck contains no slides".to_string()]
+        })
     );
 }

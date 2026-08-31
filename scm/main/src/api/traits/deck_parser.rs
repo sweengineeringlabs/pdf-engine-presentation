@@ -1,6 +1,8 @@
 use crate::api::{
-    DeckParserFactory, ParseRequest, ParseResponse, PresentationError, ValidateRequest,
+    DeckParserFactory, GetValidatorRequest, GetValidatorResponse, ParseRequest, ParseResponse,
+    PresentationError, ValidateRequest, ValidatorFactory,
 };
+use std::sync::Arc;
 
 /// Parses and validates a presentation deck from source text.
 pub trait DeckParser {
@@ -17,5 +19,16 @@ pub trait DeckParser {
         Self: Sized,
     {
         DeckParserFactory
+    }
+
+    /// Returns a [`Validator`](crate::api::Validator) for decks this parser
+    /// produces.
+    fn validator(
+        &self,
+        _request: GetValidatorRequest,
+    ) -> Result<GetValidatorResponse, PresentationError> {
+        Ok(GetValidatorResponse {
+            validator: Arc::new(ValidatorFactory.build()),
+        })
     }
 }

@@ -4,7 +4,9 @@ mod parser;
 mod traits;
 mod types;
 
-pub use dto::{ParseRequest, ParseResponse, ValidateRequest};
+pub use dto::{
+    GetValidatorRequest, GetValidatorResponse, ParseRequest, ParseResponse, ValidateRequest,
+};
 pub use error::{PresentationError, ValidationError};
 pub use traits::{DeckParser, Validator};
 pub use types::{
