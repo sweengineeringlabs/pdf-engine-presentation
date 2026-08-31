@@ -1,11 +1,15 @@
 #![allow(missing_docs)]
 
-use pdf_engine_presentation::{parse_markdown, AspectRatio};
+use pdf_engine_presentation::{AspectRatio, DeckParser, DeckParserFactory, ParseRequest};
 
 fn main() {
     let source = "# Quarterly review\n\nRevenue increased.\n---\n## Appendix";
-    match parse_markdown(source, AspectRatio::Widescreen16x9) {
-        Ok(deck) => println!("parsed {} slides", deck.slides.len()),
+    let request = ParseRequest {
+        source: source.to_string(),
+        default_aspect_ratio: AspectRatio::Widescreen16x9,
+    };
+    match DeckParserFactory.build().parse(request) {
+        Ok(response) => println!("parsed {} slides", response.deck.slides.len()),
         Err(error) => eprintln!("presentation parse failed: {error}"),
     }
 }

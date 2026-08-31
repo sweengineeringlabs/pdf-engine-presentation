@@ -1,7 +1,9 @@
-use crate::api::DeckParser;
-use crate::core::MarkdownDeckParser;
+use crate::api::{DeckParser, DeckParserFactory};
+use crate::core::DefaultMarkdownDeckParser;
 
-/// Builds the deterministic Markdown [`DeckParser`] implementation.
-pub fn build_deck_parser() -> impl DeckParser {
-    MarkdownDeckParser
+impl DeckParserFactory {
+    /// Builds the deterministic Markdown [`DeckParser`] implementation.
+    pub fn build(&self) -> impl DeckParser {
+        DefaultMarkdownDeckParser
+    }
 }

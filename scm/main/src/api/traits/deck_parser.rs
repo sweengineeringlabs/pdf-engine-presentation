@@ -1,4 +1,6 @@
-use crate::api::{ParseRequest, ParseResponse, PresentationError, ValidateRequest};
+use crate::api::{
+    DeckParserFactory, ParseRequest, ParseResponse, PresentationError, ValidateRequest,
+};
 
 /// Parses and validates a presentation deck from source text.
 pub trait DeckParser {
@@ -8,4 +10,12 @@ pub trait DeckParser {
 
     /// Validates `request.deck` against the fixed-canvas constraints.
     fn validate(&self, request: ValidateRequest) -> Result<(), PresentationError>;
+
+    /// Returns the factory used to construct implementations of this trait.
+    fn factory() -> DeckParserFactory
+    where
+        Self: Sized,
+    {
+        DeckParserFactory
+    }
 }

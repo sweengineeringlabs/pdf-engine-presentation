@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    build_deck_parser, AspectRatio, Deck, DeckParser, OverflowPolicy, ParseRequest, ParseResponse,
+    AspectRatio, Deck, DeckParser, DeckParserFactory, OverflowPolicy, ParseRequest, ParseResponse,
     PresentationError, Slide, ValidateRequest,
 };
 use std::sync::Arc;
@@ -125,50 +125,52 @@ fn test_validate_clip_policy_edge() {
     );
 }
 
-/// @covers: build_deck_parser
+/// @covers: DeckParser
 #[test]
-fn test_build_deck_parser_parse_matches_free_function_happy() {
-    let response = build_deck_parser()
+fn test_factory_build_returns_working_parser_happy() {
+    let factory: DeckParserFactory = TestDeckParser::factory();
+    let parser = factory.build();
+    let response = parser
         .parse(ParseRequest {
-            source: "# Slide\n\nBody text.".to_string(),
+            source: "# Slide".to_string(),
             default_aspect_ratio: AspectRatio::Widescreen16x9,
         })
-        .unwrap_or_else(|error| panic!("valid source failed to parse: {error}"));
+        .unwrap_or_else(|error| panic!("factory-built parser failed on valid input: {error}"));
     assert_eq!(response.deck.slides.len(), 1);
-    assert_eq!(response.deck.aspect_ratio, AspectRatio::Widescreen16x9);
 }
 
-/// @covers: build_deck_parser
+/// @covers: DeckParser
 #[test]
-fn test_build_deck_parser_validate_overfull_slide_error() {
-    let response = build_deck_parser()
-        .parse(ParseRequest {
-            source: format!("# Slide\n{}", "line\n".repeat(40)),
-            default_aspect_ratio: AspectRatio::Widescreen16x9,
-        })
-        .unwrap_or_else(|error| panic!("overflow fixture failed to parse: {error}"));
-    assert!(matches!(
-        build_deck_parser().validate(ValidateRequest {
-            deck: response.deck
-        }),
-        Err(PresentationError::SlideOverflow { .. })
-    ));
+fn test_factory_built_parser_rejects_empty_source_error() {
+    let parser = TestDeckParser::factory().build();
+    assert_eq!(
+        parser
+            .parse(ParseRequest {
+                source: String::new(),
+                default_aspect_ratio: AspectRatio::Standard4x3,
+            })
+            .err(),
+        Some(PresentationError::EmptyDeck)
+    );
 }
 
-/// @covers: build_deck_parser
+/// @covers: DeckParser
 #[test]
-fn test_build_deck_parser_parse_preserves_deck_fields() {
-    let response = build_deck_parser()
-        .parse(ParseRequest {
-            source: "+++\ntitle = \"Quarterly Review\"\n+++\n# Results".to_string(),
-            default_aspect_ratio: AspectRatio::Standard4x3,
-        })
-        .unwrap_or_else(|error| panic!("front-matter source failed to parse: {error}"));
-    let expected = Deck {
-        title: "Quarterly Review".to_string(),
-        aspect_ratio: AspectRatio::Standard4x3,
-        slides: response.deck.slides.clone(),
+fn test_factory_is_independent_of_implementor_edge() {
+    // The default factory() always returns a DeckParserFactory that builds
+    // the crate's own DefaultMarkdownDeckParser, regardless of which
+    // DeckParser implementor Self is -- confirmed here by calling it on
+    // TestDeckParser rather than the real implementation.
+    let deck = Deck {
+        title: String::new(),
+        aspect_ratio: AspectRatio::Widescreen16x9,
+        slides: vec![Slide { elements: vec![] }],
         overflow_policy: OverflowPolicy::Reject,
     };
-    assert_eq!(*response.deck, expected);
+    assert_eq!(
+        TestDeckParser::factory().build().validate(ValidateRequest {
+            deck: Arc::new(deck)
+        }),
+        Ok(())
+    );
 }

@@ -49,17 +49,25 @@ enforced twice:
 
 ## Adding a new public API item
 
-1. New data types go in their own file under `main/src/api/types/` (or
-   `main/src/api/error/` for error types) — one public type per file, named
-   after the type in snake_case — and are re-exported by name (no globs) from
-   `api/mod.rs` and then `lib.rs`. New parsing/validation logic goes in
-   `main/src/saf/parser.rs`; `saf/mod.rs` itself stays a pure re-export.
+1. New data types go in their own file under `main/src/api/types/`,
+   `main/src/api/dto/` (request/response types), or `main/src/api/error/` —
+   one public type per file, named after the type in snake_case — and are
+   re-exported by name (no globs) from `api/mod.rs` and then `lib.rs`. A new
+   trait goes in `main/src/api/traits/`. New parsing/validation logic goes in
+   `main/src/core/` (as methods on a `Default*`-prefixed struct, in its own
+   subdirectory alongside a matching `api/<domain>/` module); `saf/` holds
+   only `*_svc_factory.rs` files adding a `.build()` method to their trait's
+   factory type.
 2. Document every public item — `#![warn(missing_docs)]` is set crate-wide.
 3. `api/` and `saf/` source files must not contain `#[cfg(test)]` blocks —
    add a test file under `tests/` instead (e.g. `tests/<type>_int_test.rs`
-   for a new api/ type, or extend `tests/saf_int_test.rs` /
-   `tests/presentation_contracts_e2e_test.rs` for parser behavior), with an
-   `/// @covers: <item_name>` doc comment on each test.
+   for a new api/ type, or `tests/<trait>_int_test.rs` with happy/error/edge
+   coverage via a hand-written test double for a new trait method — name it
+   `Test<Trait>`, not `Fake*`/`Mock*`, or `arch audit --rs`'s
+   `no_mocks_in_integration` check misfires on it). `core/` source files are
+   the opposite: private functions there need an inline `#[cfg(test)] mod
+   tests` block in the same file, and public ones still need an external
+   `tests/` file. Every test needs an `/// @covers: <item_name>` doc comment.
 4. Update [`scm/README.md`](../../scm/README.md)'s API surface table and, if
    the change affects design rationale, [`architecture.md`](../3-design/architecture.md).
 5. Add a `CHANGELOG.md` entry under `[Unreleased]`.

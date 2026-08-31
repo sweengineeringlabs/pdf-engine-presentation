@@ -1,28 +1,56 @@
 #![allow(missing_docs)]
 
-use pdf_engine_presentation::{parse_markdown, validate_deck, AspectRatio, OverflowPolicy};
+use pdf_engine_presentation::{
+    AspectRatio, DeckParser, DeckParserFactory, OverflowPolicy, ParseRequest, ValidateRequest,
+};
+use std::sync::Arc;
 
-/// @covers: parse_markdown
-/// @covers: validate_deck
+/// @covers: DeckParser
 #[test]
 fn test_parse_markdown_validate_deck_happy() {
-    let deck = parse_markdown("# Slide", AspectRatio::Widescreen16x9)
+    let parser = DeckParserFactory.build();
+    let response = parser
+        .parse(ParseRequest {
+            source: "# Slide".to_string(),
+            default_aspect_ratio: AspectRatio::Widescreen16x9,
+        })
         .unwrap_or_else(|error| panic!("valid deck failed: {error}"));
-    assert_eq!(deck.slides.len(), 1);
-    assert!(validate_deck(&deck).is_ok());
+    assert_eq!(response.deck.slides.len(), 1);
+    assert!(parser
+        .validate(ValidateRequest {
+            deck: response.deck
+        })
+        .is_ok());
 }
 
-/// @covers: parse_markdown
+/// @covers: DeckParser
 #[test]
 fn test_parse_markdown_error() {
-    assert!(parse_markdown("", AspectRatio::Standard4x3).is_err());
+    assert!(DeckParserFactory
+        .build()
+        .parse(ParseRequest {
+            source: String::new(),
+            default_aspect_ratio: AspectRatio::Standard4x3,
+        })
+        .is_err());
 }
 
-/// @covers: validate_deck
+/// @covers: DeckParser
 #[test]
 fn test_validate_deck_edge() {
-    let mut deck = parse_markdown("# Slide", AspectRatio::Standard4x3)
+    let parser = DeckParserFactory.build();
+    let response = parser
+        .parse(ParseRequest {
+            source: "# Slide".to_string(),
+            default_aspect_ratio: AspectRatio::Standard4x3,
+        })
         .unwrap_or_else(|error| panic!("valid deck failed: {error}"));
+    let mut deck = (*response.deck).clone();
     deck.overflow_policy = OverflowPolicy::Clip;
-    assert_eq!(validate_deck(&deck), Ok(()));
+    assert_eq!(
+        parser.validate(ValidateRequest {
+            deck: Arc::new(deck)
+        }),
+        Ok(())
+    );
 }

@@ -1,4 +1,4 @@
-mod markdown_deck_parser;
-mod presentation_error_display;
+mod error;
+mod parser;
 
-pub(crate) use markdown_deck_parser::MarkdownDeckParser;
+pub(crate) use parser::{DefaultDeckValidator, DefaultMarkdownDeckParser};

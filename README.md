@@ -6,12 +6,11 @@
 
 A Markdown-to-`Deck` parser and validator, extracted from the
 [`pdf-engine`](https://github.com/sweengineeringlabs/pdf-engine) document
-engine. `parse_markdown` turns a Markdown source string into a `Deck` of
+engine. The `DeckParser` trait turns a Markdown source string into a `Deck` of
 `Slide`s made of `SlideElement`s (headings, paragraphs, fenced code, speaker
-notes); `validate_deck` checks the result against a deterministic fixed-canvas
-line estimate. Both functions and every public type (`Deck`, `Slide`,
-`SlideElement`, `AspectRatio`, `OverflowPolicy`, `PresentationError`) have zero
-dependencies of their own.
+notes) and checks the result against a deterministic fixed-canvas line
+estimate; `DeckParserFactory` builds the default implementation. Every public
+item has zero dependencies of its own.
 
 ## Why
 
@@ -33,12 +32,14 @@ pdf-engine-presentation = "1.9"
 ```
 
 ```rust
-use pdf_engine_presentation::{parse_markdown, validate_deck, AspectRatio};
+use pdf_engine_presentation::{AspectRatio, DeckParser, DeckParserFactory, ParseRequest};
 
 let source = "# Quarterly review\n\nRevenue increased.\n---\n## Appendix";
-let deck = parse_markdown(source, AspectRatio::Widescreen16x9)?;
-validate_deck(&deck)?;
-println!("{} slide(s)", deck.slides.len());
+let response = DeckParserFactory.build().parse(ParseRequest {
+    source: source.to_string(),
+    default_aspect_ratio: AspectRatio::Widescreen16x9,
+})?;
+println!("{} slide(s)", response.deck.slides.len());
 ```
 
 Slides are separated by a `---` line. Speaker notes are wrapped in

@@ -1,10 +1,12 @@
+mod dto;
 mod error;
+mod parser;
 mod traits;
 mod types;
 
-pub use error::PresentationError;
-pub use traits::DeckParser;
+pub use dto::{ParseRequest, ParseResponse, ValidateRequest};
+pub use error::{PresentationError, ValidationError};
+pub use traits::{DeckParser, Validator};
 pub use types::{
-    AspectRatio, Deck, OverflowPolicy, ParseRequest, ParseResponse, Slide, SlideElement,
-    ValidateRequest,
+    AspectRatio, Deck, DeckParserFactory, OverflowPolicy, Slide, SlideElement, ValidatorFactory,
 };

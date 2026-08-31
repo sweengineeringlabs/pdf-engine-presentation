@@ -17,15 +17,23 @@ scm/
 ├── bootstrap.sh / bootstrap.ps1   installs git hooks, fetches dependencies
 ├── scripts/hooks/   pre-commit (fmt/clippy/test), commit-msg (AI-attribution guard)
 ├── main/src/
-│   ├── lib.rs       crate root — re-exports api::* and saf::{parse_markdown, validate_deck}
+│   ├── lib.rs       crate root — re-exports api::*
 │   ├── api/
-│   │   ├── types/   Deck, Slide, SlideElement, AspectRatio, OverflowPolicy — one type per file
-│   │   └── error/   PresentationError (declaration only)
-│   ├── core/        Display/Error trait impls for PresentationError
-│   └── saf/         mod.rs re-exports parser::{parse_markdown, validate_deck}
-├── examples/        basic — minimal parse_markdown call
-└── tests/           one *_int_test.rs per public type, plus saf_int_test.rs and
-                      presentation_contracts_e2e_test.rs for parse_markdown/validate_deck
+│   │   ├── traits/  DeckParser, Validator — the two public contracts
+│   │   ├── types/   Deck, Slide, SlideElement, AspectRatio, OverflowPolicy,
+│   │   │            DeckParserFactory, ValidatorFactory — one type per file
+│   │   ├── dto/     ParseRequest, ParseResponse, ValidateRequest
+│   │   ├── error/   PresentationError, ValidationError (declarations only)
+│   │   └── parser/  marker module pairing the `parser` domain with core/parser/
+│   ├── core/
+│   │   ├── parser/  DefaultMarkdownDeckParser, DefaultDeckValidator (the real logic)
+│   │   └── error/   Display/Error impls for PresentationError
+│   └── saf/         deck_parser_svc_factory, validator_svc_factory —
+│                     construct the default implementations behind the traits
+├── examples/        basic — minimal DeckParserFactory.build().parse(...) call
+└── tests/           one *_int_test.rs per public type/trait, plus
+                      markdown_deck_parser_int_test.rs and
+                      presentation_contracts_e2e_test.rs for end-to-end coverage
 ```
 
 ## API surface
@@ -36,29 +44,33 @@ pdf-engine-presentation = "1.9"
 ```
 
 ```rust
-use pdf_engine_presentation::{parse_markdown, validate_deck, AspectRatio, OverflowPolicy};
+use pdf_engine_presentation::{AspectRatio, DeckParser, DeckParserFactory, ParseRequest};
 
-let deck = parse_markdown(
-    "+++\ntitle = \"Quarterly Review\"\naspect_ratio = \"16:9\"\n+++\n# Results\n\nRevenue increased 20%.\n---\n## Appendix",
-    AspectRatio::Widescreen16x9,
-)?;
+let response = DeckParserFactory.build().parse(ParseRequest {
+    source: "+++\ntitle = \"Quarterly Review\"\naspect_ratio = \"16:9\"\n+++\n# Results\n\nRevenue increased 20%.\n---\n## Appendix".to_string(),
+    default_aspect_ratio: AspectRatio::Widescreen16x9,
+})?;
 
-assert_eq!(deck.title, "Quarterly Review");
-assert_eq!(deck.slides.len(), 2);
-
-validate_deck(&deck)?;
+assert_eq!(response.deck.title, "Quarterly Review");
+assert_eq!(response.deck.slides.len(), 2);
 ```
 
 | Item | What it does |
 |------|-------------|
-| `parse_markdown(source, default_aspect_ratio)` | Parses Markdown into a `Deck`; front matter overrides `default_aspect_ratio` |
-| `validate_deck(&deck)` | Rejects a deck whose estimated per-slide line count exceeds the fixed canvas, unless `overflow_policy` is `Clip` |
+| `DeckParser` | Trait: `parse(ParseRequest) -> Result<ParseResponse, PresentationError>`, `validate(ValidateRequest) -> Result<(), PresentationError>` |
+| `DeckParserFactory` | `.build()` returns the deterministic Markdown `DeckParser` implementation |
+| `Validator` | Trait: `validate(ValidateRequest) -> Result<(), ValidationError>` — the same fixed-canvas check as `DeckParser::validate`, wrapped in itemized diagnostics |
+| `ValidatorFactory` | `.build()` returns the default `Validator` implementation |
+| `ParseRequest { source, default_aspect_ratio }` | Input to `DeckParser::parse` |
+| `ParseResponse { deck: Arc<Deck> }` | Output of `DeckParser::parse` |
+| `ValidateRequest { deck: Arc<Deck> }` | Input to `DeckParser::validate` / `Validator::validate` |
 | `Deck { title, aspect_ratio, slides, overflow_policy }` | Parsed deck |
 | `Slide { elements }` | One slide's elements, in source order |
 | `SlideElement::{Paragraph, Heading, Code, Notes}` | A single slide element |
 | `AspectRatio::{Widescreen16x9, Standard4x3}` | Slide aspect ratio |
-| `OverflowPolicy::{Reject, Clip}` | What `validate_deck` does when a slide overflows |
+| `OverflowPolicy::{Reject, Clip}` | What validation does when a slide overflows |
 | `PresentationError::{EmptyDeck, MalformedSource, SlideOverflow}` | Parse/validation failure, implements `std::error::Error` |
+| `ValidationError { violations: Vec<String> }` | `Validator::validate`'s itemized failure |
 
 ### Source syntax
 
@@ -88,3 +100,8 @@ validate_deck(&deck)?;
   only `#`/`##` headings, paragraphs, fenced code, and `:::notes` blocks are
   recognized. Lists, emphasis, links, tables, and nested headings (`###`+) are
   not parsed as such — they pass through as plain paragraph text.
+- `Validator` and `DeckParser::validate` currently perform the identical
+  fixed-canvas check — `Validator` exists as a separate, standard shape so
+  the crate exposes a uniform validation contract, and it re-reports
+  `DeckParser`'s structured `PresentationError` as a generic, itemized
+  `ValidationError` rather than duplicating the validation logic itself.

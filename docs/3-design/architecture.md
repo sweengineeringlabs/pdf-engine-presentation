@@ -2,35 +2,47 @@
 
 ## What
 
-`pdf-engine-presentation` is a single library crate with three modules:
+`pdf-engine-presentation` is a single library crate structured in SEA
+(port/adapter-style) layers:
 
-- `api` — pure data declarations, one type per file: `api/types/` holds
-  `Deck`, `Slide`, `SlideElement`, `AspectRatio`, `OverflowPolicy`; `api/error/`
-  holds the `PresentationError` enum declaration. No logic, no impls.
-- `core` — the `Display`/`std::error::Error` trait implementations for
-  `PresentationError` (kept out of `api/`, which is declarations-only).
-- `saf` — the parser and validator: `parser.rs` defines `parse_markdown`
-  (source text → `Deck`) and `validate_deck` (`Deck` →
-  `Result<(), PresentationError>`); `saf/mod.rs` itself only re-exports them.
+- `api` — pure declarations, no logic:
+  - `api/traits/` — `DeckParser` (parse + validate a deck) and `Validator`
+    (generic itemized validation), each with a default `factory()` method.
+  - `api/types/` — `Deck`, `Slide`, `SlideElement`, `AspectRatio`,
+    `OverflowPolicy`, `DeckParserFactory`, `ValidatorFactory` — one type per file.
+  - `api/dto/` — `ParseRequest`, `ParseResponse`, `ValidateRequest`, the
+    request/response types `DeckParser`'s methods use.
+  - `api/error/` — `PresentationError`, `ValidationError` (declarations only).
+- `core/parser/` — the real logic: `DefaultMarkdownDeckParser` (implements
+  `DeckParser`) and `DefaultDeckValidator` (implements `Validator`, adapting
+  `DefaultMarkdownDeckParser`'s validation into `Validator`'s itemized-error
+  shape). `core/error/` holds `PresentationError`'s `Display`/`Error` impls.
+- `saf` — construction only: `deck_parser_svc_factory.rs` and
+  `validator_svc_factory.rs` each add a `.build()` method to their
+  respective factory type (declared in `api/`), returning `impl Trait` over
+  the `core/` implementation.
 
-`lib.rs` re-exports the public items from `api`, so callers only ever import
-from the crate root (`pdf_engine_presentation::{parse_markdown, Deck, ...}`),
-never from `api`/`core`/`saf` directly — those module names are an internal
-organizational detail, not part of the public API.
+`lib.rs` re-exports every public item from `api`, so callers only ever import
+from the crate root (`pdf_engine_presentation::{DeckParser, DeckParserFactory,
+ParseRequest, ...}`), never from `api`/`core`/`saf` directly — those module
+names are an internal organizational detail, not part of the public API.
 
 ```mermaid
 graph TD
     Caller["Caller code"]
-    Lib["lib.rs<br/>pub use api::{...}<br/>pub use saf::{parse_markdown, validate_deck}"]
-    Api["api/types, api/error<br/>Deck, Slide, SlideElement,<br/>AspectRatio, OverflowPolicy, PresentationError"]
-    Core["core<br/>Display / Error impls for PresentationError"]
-    Saf["saf/parser.rs<br/>parse_markdown, validate_deck"]
+    Lib["lib.rs<br/>pub use api::*"]
+    ApiTraits["api/traits<br/>DeckParser, Validator"]
+    ApiTypes["api/types, api/dto, api/error<br/>Deck, Slide, ..., ParseRequest, ...,<br/>PresentationError, ValidationError,<br/>DeckParserFactory, ValidatorFactory"]
+    Core["core/parser<br/>DefaultMarkdownDeckParser, DefaultDeckValidator"]
+    Saf["saf<br/>*_svc_factory.rs — DeckParserFactory::build(),<br/>ValidatorFactory::build()"]
 
     Caller --> Lib
-    Lib --> Api
-    Lib --> Saf
-    Saf --> Api
-    Core --> Api
+    Lib --> ApiTraits
+    Lib --> ApiTypes
+    ApiTraits --> ApiTypes
+    Saf --> ApiTraits
+    Saf --> Core
+    Core --> ApiTypes
 ```
 
 ## Why
@@ -52,32 +64,54 @@ internal convention: consumers who only need the parsing/validation contract
 parser) can depend on it from crates.io without a path/git dependency into a
 private monorepo.
 
+### Why a trait, not free functions
+
+The crate originally exposed `parse_markdown`/`validate_deck` as free
+functions. It now exposes them as the `DeckParser` trait, built via
+`DeckParserFactory`, for two reasons: the trait gives callers a substitutable
+seam (a test double can stand in for `DeckParser` without touching real
+parsing logic — see `tests/deck_parser_int_test.rs`), and it lets the crate's
+internal layering keep all real logic inside `core/`, with `api/` staying a
+pure, dependency-free contract surface.
+
+### Why `Validator` as well as `DeckParser::validate`
+
+`Validator::validate` and `DeckParser::validate` check the same fixed-canvas
+constraint — `DefaultDeckValidator` (the default `Validator` implementation)
+delegates directly to `DefaultMarkdownDeckParser::validate_deck` rather than
+reimplementing it. `Validator` exists as a second, generic entry point
+because it reports failures as itemized `ValidationError { violations:
+Vec<String> }` diagnostics rather than `DeckParser`'s structured
+`PresentationError` variants — useful for a caller that wants a uniform
+validation shape across multiple unrelated checks, without needing to know
+`PresentationError`'s specific variants.
+
 ## Determinism
 
-`parse_markdown` and `validate_deck` are both pure functions: same input,
-same output, every time. There is no floating-point arithmetic, no locale-
-or platform-dependent behavior, and no reliance on iteration order that isn't
-already source order. `validate_deck`'s line-count estimate
-(`SlideOverflow`'s `estimated_lines`) is an integer computation over `char`
+`DefaultMarkdownDeckParser::parse` and `::validate` are both pure: same
+input, same output, every time. There is no floating-point arithmetic, no
+locale- or platform-dependent behavior, and no reliance on iteration order
+that isn't already source order. The line-count estimate behind
+`SlideOverflow`'s `estimated_lines` is an integer computation over `char`
 counts and `\n`-delimited line counts — reproducible across platforms.
 
 ## Module data flow
 
 ```mermaid
 flowchart TD
-    Source["&str (Markdown source)"]
-    Parse["parse_markdown<br/>strips optional front matter (+++ or ---),<br/>splits on --- slide markers, tracks fenced-code<br/>and :::notes state per line"]
-    DeckNode["Deck { title, aspect_ratio, slides, overflow_policy }"]
-    Validate["validate_deck<br/>sums a deterministic per-slide line estimate"]
-    Overflow(["Err(PresentationError::SlideOverflow)"])
+    Source["ParseRequest { source, default_aspect_ratio }"]
+    Parse["DeckParser::parse<br/>strips optional front matter (+++ or ---),<br/>splits on --- slide markers, tracks fenced-code<br/>and :::notes state per line"]
+    Response["ParseResponse { deck: Arc&lt;Deck&gt; }"]
+    Validate["DeckParser::validate / Validator::validate<br/>sums a deterministic per-slide line estimate"]
+    Overflow(["Err(PresentationError::SlideOverflow)<br/>or Err(ValidationError { violations })"])
     Valid(["Ok(())"])
     Render["caller renders the validated Deck<br/>(out of scope for this crate)"]
     ParseErr(["Err: EmptyDeck / MalformedSource"])
 
     Source --> Parse
     Parse -->|"parse error"| ParseErr
-    Parse -->|"parsed"| DeckNode
-    DeckNode --> Validate
+    Parse -->|"parsed"| Response
+    Response --> Validate
     Validate -->|"overflow_policy = Reject and over budget"| Overflow
     Validate -->|"overflow_policy = Clip, or within budget"| Valid
     Valid --> Render
@@ -85,11 +119,12 @@ flowchart TD
 
 ## Error handling
 
-`PresentationError` is a plain enum declared in `api/error/presentation_error.rs`;
-its `std::error::Error` and `Display` impls live in `core/presentation_error_display.rs`
-so that `api/` stays declarations-only. No `unwrap`/`expect` anywhere in the parser (enforced by
-`#![deny(unsafe_code)]` at the crate level and
-`unwrap_used`/`expect_used = "deny"` lint configuration in `Cargo.toml`).
-Every failure path returns a `PresentationError` variant with enough context
-(the offending slide number, the estimated line count, or a message) for a
-caller to act on without re-parsing the source.
+`PresentationError` is declared in `api/error/presentation_error.rs`; its
+`std::error::Error` and `Display` impls live in `core/error/display.rs` so
+that `api/` stays declarations-only. `ValidationError` is a plain struct
+wrapping `Vec<String>`. No `unwrap`/`expect` anywhere in the parser (enforced
+by `#![deny(unsafe_code)]` at the crate level and `unwrap_used`/`expect_used
+= "deny"` lint configuration in `Cargo.toml`). Every failure path returns a
+`PresentationError` (or, through `Validator`, a `ValidationError`) with
+enough context — the offending slide number, the estimated line count, or a
+message — for a caller to act on without re-parsing the source.
