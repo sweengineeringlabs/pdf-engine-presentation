@@ -9,39 +9,45 @@
   - `api/traits/` — `DeckParser` (parse + validate a deck) and `Validator`
     (generic itemized validation), each with a default `factory()` method.
   - `api/types/` — `Deck`, `Slide`, `SlideElement`, `AspectRatio`,
-    `OverflowPolicy`, `DeckParserFactory`, `ValidatorFactory` — one type per file.
+    `OverflowPolicy`; `api/types/factory/` — `FactoryDeckParser`,
+    `FactoryValidator` — one type per file.
   - `api/dto/` — `ParseRequest`, `ParseResponse`, `ValidateRequest`, the
     request/response types `DeckParser`'s methods use.
   - `api/error/` — `PresentationError`, `ValidationError` (declarations only).
 - `core/parser/` — the real logic: `DefaultMarkdownDeckParser` (implements
   `DeckParser`) and `DefaultDeckValidator` (implements `Validator`, adapting
   `DefaultMarkdownDeckParser`'s validation into `Validator`'s itemized-error
-  shape). `core/error/` holds `PresentationError`'s `Display`/`Error` impls.
+  shape). This is also where `FactoryDeckParser`/`FactoryValidator` (declared
+  in `api/`) get their own `DeckParser`/`Validator` impls, each delegating to
+  the `Default*` type — `saf/` must stay construction-only, so trait impls for
+  `api/`-declared types live in `core/`, not `saf/`. `core/error/` holds
+  `PresentationError`'s `Display`/`Error` impls.
 - `saf` — construction only: `deck_parser_svc_factory.rs` and
-  `validator_svc_factory.rs` each add a `.build()` method to their
-  respective factory type (declared in `api/`), returning `impl Trait` over
-  the `core/` implementation.
+  `validator_svc_factory.rs` each re-export their respective port trait
+  (`DeckParser`, `Validator`) through the facade. The production
+  implementations (`FactoryDeckParser`, `FactoryValidator`) are reachable via
+  the crate root through `contract_svc.rs`'s existing `api::*` re-export.
 
-`lib.rs` re-exports every public item from `api`, so callers only ever import
-from the crate root (`pdf_engine_presentation::{DeckParser, DeckParserFactory,
+`lib.rs` re-exports every public item from `saf`, so callers only ever import
+from the crate root (`pdf_engine_presentation::{DeckParser, FactoryDeckParser,
 ParseRequest, ...}`), never from `api`/`core`/`saf` directly — those module
 names are an internal organizational detail, not part of the public API.
 
 ```mermaid
 graph TD
     Caller["Caller code"]
-    Lib["lib.rs<br/>pub use api::*"]
+    Lib["lib.rs<br/>pub use saf::*"]
     ApiTraits["api/traits<br/>DeckParser, Validator"]
-    ApiTypes["api/types, api/dto, api/error<br/>Deck, Slide, ..., ParseRequest, ...,<br/>PresentationError, ValidationError,<br/>DeckParserFactory, ValidatorFactory"]
-    Core["core/parser<br/>DefaultMarkdownDeckParser, DefaultDeckValidator"]
-    Saf["saf<br/>*_svc_factory.rs — DeckParserFactory::build(),<br/>ValidatorFactory::build()"]
+    ApiTypes["api/types, api/dto, api/error<br/>Deck, Slide, ..., ParseRequest, ...,<br/>PresentationError, ValidationError,<br/>FactoryDeckParser, FactoryValidator"]
+    Core["core/parser<br/>DefaultMarkdownDeckParser, DefaultDeckValidator,<br/>impl DeckParser for FactoryDeckParser,<br/>impl Validator for FactoryValidator"]
+    Saf["saf<br/>contract_svc.rs (pub use api::*),<br/>*_svc_factory.rs — re-export DeckParser / Validator"]
 
     Caller --> Lib
-    Lib --> ApiTraits
-    Lib --> ApiTypes
-    ApiTraits --> ApiTypes
+    Lib --> Saf
     Saf --> ApiTraits
-    Saf --> Core
+    Saf --> ApiTypes
+    ApiTraits --> ApiTypes
+    Core --> ApiTraits
     Core --> ApiTypes
 ```
 
@@ -67,8 +73,8 @@ private monorepo.
 ### Why a trait, not free functions
 
 The crate originally exposed `parse_markdown`/`validate_deck` as free
-functions. It now exposes them as the `DeckParser` trait, built via
-`DeckParserFactory`, for two reasons: the trait gives callers a substitutable
+functions. It now exposes them as the `DeckParser` trait, implemented
+directly by `FactoryDeckParser`, for two reasons: the trait gives callers a substitutable
 seam (a test double can stand in for `DeckParser` without touching real
 parsing logic — see `tests/deck_parser_int_test.rs`), and it lets the crate's
 internal layering keep all real logic inside `core/`, with `api/` staying a

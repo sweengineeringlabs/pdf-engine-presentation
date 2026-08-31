@@ -51,13 +51,18 @@ enforced twice:
 
 1. New data types go in their own file under `main/src/api/types/`,
    `main/src/api/dto/` (request/response types), or `main/src/api/error/` —
-   one public type per file, named after the type in snake_case — and are
-   re-exported by name (no globs) from `api/mod.rs` and then `lib.rs`. A new
-   trait goes in `main/src/api/traits/`. New parsing/validation logic goes in
-   `main/src/core/` (as methods on a `Default*`-prefixed struct, in its own
-   subdirectory alongside a matching `api/<domain>/` module); `saf/` holds
-   only `*_svc_factory.rs` files adding a `.build()` method to their trait's
-   factory type.
+   one public type per file, named after the type in snake_case (sibling
+   files sharing a prefix, e.g. `factory_*`, get grouped into a same-named
+   subdirectory) — and are re-exported by name (no globs) from `api/mod.rs`
+   and then `saf/mod.rs`. A new trait goes in `main/src/api/traits/`. New
+   parsing/validation logic goes in `main/src/core/` (as methods on a
+   `Default*`-prefixed struct, in its own subdirectory alongside a matching
+   `api/<domain>/` module). A factory/marker type that implements its own
+   trait directly (so it's usable without an existing implementor to call
+   `factory()` on) must carry the trait name as a suffix, and that impl block
+   lives in `core/` alongside the `Default*` implementation it delegates to —
+   `saf/` stays construction-only and holds only `*_svc_factory.rs` files
+   re-exporting the relevant port trait.
 2. Document every public item — `#![warn(missing_docs)]` is set crate-wide.
 3. `api/` and `saf/` source files must not contain `#[cfg(test)]` blocks —
    add a test file under `tests/` instead (e.g. `tests/<type>_int_test.rs`

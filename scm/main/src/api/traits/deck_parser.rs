@@ -1,6 +1,6 @@
 use crate::api::{
-    DeckParserFactory, GetValidatorRequest, GetValidatorResponse, ParseRequest, ParseResponse,
-    PresentationError, ValidateRequest, ValidatorFactory,
+    FactoryDeckParser, FactoryValidator, GetValidatorRequest, GetValidatorResponse, ParseRequest,
+    ParseResponse, PresentationError, ValidateRequest,
 };
 use std::sync::Arc;
 
@@ -14,11 +14,11 @@ pub trait DeckParser {
     fn validate(&self, request: ValidateRequest) -> Result<(), PresentationError>;
 
     /// Returns the factory used to construct implementations of this trait.
-    fn factory() -> DeckParserFactory
+    fn factory() -> FactoryDeckParser
     where
         Self: Sized,
     {
-        DeckParserFactory
+        FactoryDeckParser
     }
 
     /// Returns a [`Validator`](crate::api::Validator) for decks this parser
@@ -28,7 +28,7 @@ pub trait DeckParser {
         _request: GetValidatorRequest,
     ) -> Result<GetValidatorResponse, PresentationError> {
         Ok(GetValidatorResponse {
-            validator: Arc::new(ValidatorFactory.build()),
+            validator: Arc::new(FactoryValidator),
         })
     }
 }

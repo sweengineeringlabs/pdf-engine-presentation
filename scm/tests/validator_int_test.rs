@@ -88,7 +88,7 @@ fn test_factory_build_returns_working_validator_happy() {
         overflow_policy: OverflowPolicy::Reject,
     };
     assert_eq!(
-        TestValidator::factory().build().validate(ValidateRequest {
+        TestValidator::factory().validate(ValidateRequest {
             deck: Arc::new(deck)
         }),
         Ok(())
@@ -105,7 +105,6 @@ fn test_factory_built_validator_rejects_empty_deck_error() {
         overflow_policy: OverflowPolicy::Reject,
     };
     assert!(TestValidator::factory()
-        .build()
         .validate(ValidateRequest {
             deck: Arc::new(deck)
         })
@@ -122,7 +121,7 @@ fn test_factory_is_independent_of_implementor_edge() {
         overflow_policy: OverflowPolicy::Clip,
     };
     assert_eq!(
-        TestValidator::factory().build().validate(ValidateRequest {
+        TestValidator::factory().validate(ValidateRequest {
             deck: Arc::new(deck)
         }),
         Ok(())

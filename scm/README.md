@@ -17,20 +17,22 @@ scm/
 ├── bootstrap.sh / bootstrap.ps1   installs git hooks, fetches dependencies
 ├── scripts/hooks/   pre-commit (fmt/clippy/test), commit-msg (AI-attribution guard)
 ├── main/src/
-│   ├── lib.rs       crate root — re-exports api::*
+│   ├── lib.rs       crate root — re-exports saf::*
 │   ├── api/
 │   │   ├── traits/  DeckParser, Validator — the two public contracts
-│   │   ├── types/   Deck, Slide, SlideElement, AspectRatio, OverflowPolicy,
-│   │   │            DeckParserFactory, ValidatorFactory — one type per file
+│   │   ├── types/   Deck, Slide, SlideElement, AspectRatio, OverflowPolicy;
+│   │   │            types/factory/ — FactoryDeckParser, FactoryValidator
 │   │   ├── dto/     ParseRequest, ParseResponse, ValidateRequest
 │   │   ├── error/   PresentationError, ValidationError (declarations only)
 │   │   └── parser/  marker module pairing the `parser` domain with core/parser/
 │   ├── core/
-│   │   ├── parser/  DefaultMarkdownDeckParser, DefaultDeckValidator (the real logic)
+│   │   ├── parser/  DefaultMarkdownDeckParser, DefaultDeckValidator (the real
+│   │   │            logic), plus the DeckParser/Validator impls for
+│   │   │            FactoryDeckParser/FactoryValidator that delegate to them
 │   │   └── error/   Display/Error impls for PresentationError
-│   └── saf/         deck_parser_svc_factory, validator_svc_factory —
-│                     construct the default implementations behind the traits
-├── examples/        basic — minimal DeckParserFactory.build().parse(...) call
+│   └── saf/         contract_svc (pub use api::*), deck_parser_svc_factory,
+│                     validator_svc_factory — re-export the port traits
+├── examples/        basic — minimal FactoryDeckParser.parse(...) call
 └── tests/           one *_int_test.rs per public type/trait, plus
                       markdown_deck_parser_int_test.rs and
                       presentation_contracts_e2e_test.rs for end-to-end coverage
@@ -44,9 +46,9 @@ pdf-engine-presentation = "1.9"
 ```
 
 ```rust
-use pdf_engine_presentation::{AspectRatio, DeckParser, DeckParserFactory, ParseRequest};
+use pdf_engine_presentation::{AspectRatio, DeckParser, FactoryDeckParser, ParseRequest};
 
-let response = DeckParserFactory.build().parse(ParseRequest {
+let response = FactoryDeckParser.parse(ParseRequest {
     source: "+++\ntitle = \"Quarterly Review\"\naspect_ratio = \"16:9\"\n+++\n# Results\n\nRevenue increased 20%.\n---\n## Appendix".to_string(),
     default_aspect_ratio: AspectRatio::Widescreen16x9,
 })?;
@@ -57,13 +59,15 @@ assert_eq!(response.deck.slides.len(), 2);
 
 | Item | What it does |
 |------|-------------|
-| `DeckParser` | Trait: `parse(ParseRequest) -> Result<ParseResponse, PresentationError>`, `validate(ValidateRequest) -> Result<(), PresentationError>` |
-| `DeckParserFactory` | `.build()` returns the deterministic Markdown `DeckParser` implementation |
+| `DeckParser` | Trait: `parse(ParseRequest) -> Result<ParseResponse, PresentationError>`, `validate(ValidateRequest) -> Result<(), PresentationError>`, `validator(GetValidatorRequest) -> Result<GetValidatorResponse, PresentationError>` (default: hands back a `FactoryValidator`) |
+| `FactoryDeckParser` | The deterministic Markdown `DeckParser` implementation; also what `<T as DeckParser>::factory()` returns |
 | `Validator` | Trait: `validate(ValidateRequest) -> Result<(), ValidationError>` — the same fixed-canvas check as `DeckParser::validate`, wrapped in itemized diagnostics |
-| `ValidatorFactory` | `.build()` returns the default `Validator` implementation |
+| `FactoryValidator` | The default `Validator` implementation; also what `<T as Validator>::factory()` returns |
 | `ParseRequest { source, default_aspect_ratio }` | Input to `DeckParser::parse` |
 | `ParseResponse { deck: Arc<Deck> }` | Output of `DeckParser::parse` |
 | `ValidateRequest { deck: Arc<Deck> }` | Input to `DeckParser::validate` / `Validator::validate` |
+| `GetValidatorRequest` | Input to `DeckParser::validator` (unit struct) |
+| `GetValidatorResponse { validator: Arc<dyn Validator> }` | Output of `DeckParser::validator` |
 | `Deck { title, aspect_ratio, slides, overflow_policy }` | Parsed deck |
 | `Slide { elements }` | One slide's elements, in source order |
 | `SlideElement::{Paragraph, Heading, Code, Notes}` | A single slide element |

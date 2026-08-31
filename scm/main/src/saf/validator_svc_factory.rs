@@ -1,9 +1,6 @@
-use crate::api::{Validator, ValidatorFactory};
-use crate::core::DefaultDeckValidator;
+//! Re-exports the [`Validator`](crate::api::Validator) port trait through
+//! the facade. The production implementation is
+//! [`FactoryValidator`](crate::api::FactoryValidator), reachable via the
+//! crate root.
 
-impl ValidatorFactory {
-    /// Builds the default [`Validator`] implementation.
-    pub fn build(&self) -> impl Validator {
-        DefaultDeckValidator
-    }
-}
+pub use crate::api::Validator;

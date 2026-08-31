@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    AspectRatio, Deck, DeckParser, DeckParserFactory, GetValidatorRequest, OverflowPolicy,
+    AspectRatio, Deck, DeckParser, FactoryDeckParser, GetValidatorRequest, OverflowPolicy,
     ParseRequest, ParseResponse, PresentationError, Slide, ValidateRequest,
 };
 use std::sync::Arc;
@@ -139,9 +139,8 @@ fn test_validate_clip_policy_edge() {
 /// @covers: DeckParser
 #[test]
 fn test_factory_build_returns_working_parser_happy() {
-    let factory: DeckParserFactory = TestDeckParser::factory();
-    let parser = factory.build();
-    let response = parser
+    let factory: FactoryDeckParser = TestDeckParser::factory();
+    let response = factory
         .parse(ParseRequest {
             source: "# Slide".to_string(),
             default_aspect_ratio: AspectRatio::Widescreen16x9,
@@ -153,9 +152,9 @@ fn test_factory_build_returns_working_parser_happy() {
 /// @covers: DeckParser
 #[test]
 fn test_factory_built_parser_rejects_empty_source_error() {
-    let parser = TestDeckParser::factory().build();
+    let factory = TestDeckParser::factory();
     assert_eq!(
-        parser
+        factory
             .parse(ParseRequest {
                 source: String::new(),
                 default_aspect_ratio: AspectRatio::Standard4x3,
@@ -168,7 +167,7 @@ fn test_factory_built_parser_rejects_empty_source_error() {
 /// @covers: DeckParser
 #[test]
 fn test_factory_is_independent_of_implementor_edge() {
-    // The default factory() always returns a DeckParserFactory that builds
+    // The default factory() always returns a FactoryDeckParser that builds
     // the crate's own DefaultMarkdownDeckParser, regardless of which
     // DeckParser implementor Self is -- confirmed here by calling it on
     // TestDeckParser rather than the real implementation.
@@ -179,7 +178,7 @@ fn test_factory_is_independent_of_implementor_edge() {
         overflow_policy: OverflowPolicy::Reject,
     };
     assert_eq!(
-        TestDeckParser::factory().build().validate(ValidateRequest {
+        TestDeckParser::factory().validate(ValidateRequest {
             deck: Arc::new(deck)
         }),
         Ok(())
@@ -191,7 +190,7 @@ fn test_factory_is_independent_of_implementor_edge() {
 fn test_validator_default_impl_returns_working_validator_happy() {
     // The default `validator()` implementation (inherited by the real
     // factory-built parser) must return a Validator that actually validates.
-    let parser = DeckParserFactory.build();
+    let parser = FactoryDeckParser;
     let validator = parser
         .validator(GetValidatorRequest)
         .unwrap_or_else(|error| panic!("default validator() failed: {error}"))
@@ -225,7 +224,7 @@ fn test_validator_default_impl_detects_empty_deck_edge() {
     // The validator returned by the default implementation must apply the
     // same fixed-canvas rule as DeckParser::validate itself, including on
     // the boundary case of an empty deck.
-    let parser = DeckParserFactory.build();
+    let parser = FactoryDeckParser;
     let validator = parser
         .validator(GetValidatorRequest)
         .unwrap_or_else(|error| panic!("default validator() failed: {error}"))

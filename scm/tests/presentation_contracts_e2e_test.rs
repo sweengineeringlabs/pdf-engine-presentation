@@ -1,14 +1,14 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    AspectRatio, DeckParser, DeckParserFactory, OverflowPolicy, ParseRequest, ValidateRequest,
+    AspectRatio, DeckParser, FactoryDeckParser, OverflowPolicy, ParseRequest, ValidateRequest,
 };
 use std::sync::Arc;
 
 /// @covers: DeckParser
 #[test]
 fn test_parse_markdown_validate_deck_happy() {
-    let parser = DeckParserFactory.build();
+    let parser = FactoryDeckParser;
     let response = parser
         .parse(ParseRequest {
             source: "# Slide".to_string(),
@@ -26,8 +26,7 @@ fn test_parse_markdown_validate_deck_happy() {
 /// @covers: DeckParser
 #[test]
 fn test_parse_markdown_error() {
-    assert!(DeckParserFactory
-        .build()
+    assert!(FactoryDeckParser
         .parse(ParseRequest {
             source: String::new(),
             default_aspect_ratio: AspectRatio::Standard4x3,
@@ -38,7 +37,7 @@ fn test_parse_markdown_error() {
 /// @covers: DeckParser
 #[test]
 fn test_validate_deck_edge() {
-    let parser = DeckParserFactory.build();
+    let parser = FactoryDeckParser;
     let response = parser
         .parse(ParseRequest {
             source: "# Slide".to_string(),

@@ -9,7 +9,7 @@ A Markdown-to-`Deck` parser and validator, extracted from the
 engine. The `DeckParser` trait turns a Markdown source string into a `Deck` of
 `Slide`s made of `SlideElement`s (headings, paragraphs, fenced code, speaker
 notes) and checks the result against a deterministic fixed-canvas line
-estimate; `DeckParserFactory` builds the default implementation. Every public
+estimate; `FactoryDeckParser` is the default implementation. Every public
 item has zero dependencies of its own.
 
 ## Why
@@ -32,10 +32,10 @@ pdf-engine-presentation = "1.9"
 ```
 
 ```rust
-use pdf_engine_presentation::{AspectRatio, DeckParser, DeckParserFactory, ParseRequest};
+use pdf_engine_presentation::{AspectRatio, DeckParser, FactoryDeckParser, ParseRequest};
 
 let source = "# Quarterly review\n\nRevenue increased.\n---\n## Appendix";
-let response = DeckParserFactory.build().parse(ParseRequest {
+let response = FactoryDeckParser.parse(ParseRequest {
     source: source.to_string(),
     default_aspect_ratio: AspectRatio::Widescreen16x9,
 })?;

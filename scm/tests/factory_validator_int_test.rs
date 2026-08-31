@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    AspectRatio, Deck, OverflowPolicy, Slide, ValidateRequest, Validator, ValidatorFactory,
+    AspectRatio, Deck, FactoryValidator, OverflowPolicy, Slide, ValidateRequest, Validator,
 };
 use std::sync::Arc;
 
-/// @covers: ValidatorFactory
+/// @covers: FactoryValidator
 #[test]
-fn test_validator_factory_build_returns_working_validator() {
+fn test_validator_factory_implements_validator() {
     let deck = Deck {
         title: "title".to_string(),
         aspect_ratio: AspectRatio::Widescreen16x9,
@@ -15,7 +15,7 @@ fn test_validator_factory_build_returns_working_validator() {
         overflow_policy: OverflowPolicy::Reject,
     };
     assert_eq!(
-        ValidatorFactory.build().validate(ValidateRequest {
+        FactoryValidator.validate(ValidateRequest {
             deck: Arc::new(deck)
         }),
         Ok(())

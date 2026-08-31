@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    AspectRatio, Deck, DeckParser, DeckParserFactory, GetValidatorRequest, OverflowPolicy,
+    AspectRatio, Deck, DeckParser, FactoryDeckParser, GetValidatorRequest, OverflowPolicy,
     ValidateRequest,
 };
 use std::sync::Arc;
@@ -9,8 +9,7 @@ use std::sync::Arc;
 /// @covers: GetValidatorResponse
 #[test]
 fn test_get_validator_response_holds_usable_validator() {
-    let response = DeckParserFactory
-        .build()
+    let response = FactoryDeckParser
         .validator(GetValidatorRequest)
         .unwrap_or_else(|error| panic!("validator() failed: {error}"));
     let deck = Deck {

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use pdf_engine_presentation::{
-    AspectRatio, Deck, DeckParser, DeckParserFactory, GetValidatorRequest, OverflowPolicy, Slide,
+    AspectRatio, Deck, DeckParser, FactoryDeckParser, GetValidatorRequest, OverflowPolicy, Slide,
     ValidateRequest,
 };
 use std::sync::Arc;
@@ -11,8 +11,7 @@ use std::sync::Arc;
 fn test_get_validator_request_is_accepted_by_deck_parser() {
     // GetValidatorRequest carries no data of its own; its only role is to be
     // a valid request value DeckParser::validator accepts and act on.
-    let validator = DeckParserFactory
-        .build()
+    let validator = FactoryDeckParser
         .validator(GetValidatorRequest)
         .unwrap_or_else(|error| panic!("validator() rejected GetValidatorRequest: {error}"))
         .validator;

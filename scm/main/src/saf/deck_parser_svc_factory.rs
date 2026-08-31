@@ -1,9 +1,6 @@
-use crate::api::{DeckParser, DeckParserFactory};
-use crate::core::DefaultMarkdownDeckParser;
+//! Re-exports the [`DeckParser`](crate::api::DeckParser) port trait through
+//! the facade. The production implementation is
+//! [`FactoryDeckParser`](crate::api::FactoryDeckParser), reachable via the
+//! crate root.
 
-impl DeckParserFactory {
-    /// Builds the deterministic Markdown [`DeckParser`] implementation.
-    pub fn build(&self) -> impl DeckParser {
-        DefaultMarkdownDeckParser
-    }
-}
+pub use crate::api::DeckParser;

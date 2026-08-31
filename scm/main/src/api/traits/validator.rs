@@ -1,4 +1,4 @@
-use crate::api::{ValidateRequest, ValidationError, ValidatorFactory};
+use crate::api::{FactoryValidator, ValidateRequest, ValidationError};
 
 /// Checks whether a parsed deck is structurally valid before further processing.
 pub trait Validator {
@@ -6,10 +6,10 @@ pub trait Validator {
     fn validate(&self, request: ValidateRequest) -> Result<(), ValidationError>;
 
     /// Returns the factory used to construct implementations of this trait.
-    fn factory() -> ValidatorFactory
+    fn factory() -> FactoryValidator
     where
         Self: Sized,
     {
-        ValidatorFactory
+        FactoryValidator
     }
 }

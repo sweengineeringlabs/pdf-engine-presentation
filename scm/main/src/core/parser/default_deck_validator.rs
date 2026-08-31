@@ -1,4 +1,4 @@
-use crate::api::{DeckParser, ValidateRequest, ValidationError, Validator};
+use crate::api::{DeckParser, FactoryValidator, ValidateRequest, ValidationError, Validator};
 use crate::core::DefaultMarkdownDeckParser;
 
 /// Adapts [`DefaultMarkdownDeckParser`]'s fixed-canvas validation to the
@@ -13,6 +13,12 @@ impl Validator for DefaultDeckValidator {
             .map_err(|error| ValidationError {
                 violations: vec![error.to_string()],
             })
+    }
+}
+
+impl Validator for FactoryValidator {
+    fn validate(&self, request: ValidateRequest) -> Result<(), ValidationError> {
+        DefaultDeckValidator.validate(request)
     }
 }
 

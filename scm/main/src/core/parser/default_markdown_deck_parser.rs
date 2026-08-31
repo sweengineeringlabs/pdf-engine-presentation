@@ -1,6 +1,6 @@
 use crate::api::{
-    AspectRatio, Deck, DeckParser, OverflowPolicy, ParseRequest, ParseResponse, PresentationError,
-    Slide, SlideElement, ValidateRequest,
+    AspectRatio, Deck, DeckParser, FactoryDeckParser, OverflowPolicy, ParseRequest, ParseResponse,
+    PresentationError, Slide, SlideElement, ValidateRequest,
 };
 use std::sync::Arc;
 
@@ -17,6 +17,16 @@ impl DeckParser for DefaultMarkdownDeckParser {
 
     fn validate(&self, request: ValidateRequest) -> Result<(), PresentationError> {
         Self::validate_deck(&request.deck)
+    }
+}
+
+impl DeckParser for FactoryDeckParser {
+    fn parse(&self, request: ParseRequest) -> Result<ParseResponse, PresentationError> {
+        DefaultMarkdownDeckParser.parse(request)
+    }
+
+    fn validate(&self, request: ValidateRequest) -> Result<(), PresentationError> {
+        DefaultMarkdownDeckParser.validate(request)
     }
 }
 
