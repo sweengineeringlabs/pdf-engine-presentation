@@ -84,13 +84,13 @@ pure, dependency-free contract surface.
 
 `Validator::validate` and `DeckParser::validate` check the same fixed-canvas
 constraint — `DefaultDeckValidator` (the default `Validator` implementation)
-delegates directly to `DefaultMarkdownDeckParser::validate_deck` rather than
+delegates through `DefaultMarkdownDeckParser`'s `DeckParser::validate` implementation rather than
 reimplementing it. `Validator` exists as a second, generic entry point
 because it reports failures as itemized `ValidationError { violations:
 Vec<String> }` diagnostics rather than `DeckParser`'s structured
 `PresentationError` variants — useful for a caller that wants a uniform
 validation shape across multiple unrelated checks, without needing to know
-`PresentationError`'s specific variants.
+`PresentationError`'s specific variants. The default implementation returns only the first failure as one message in `violations`; it does not collect all violations.
 
 ## Determinism
 
