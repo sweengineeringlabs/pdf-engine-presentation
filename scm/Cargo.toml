@@ -1,9 +1,9 @@
 [package]
 name = "pdf-engine-presentation"
-version = "1.9.7"
+version = "1.98.1"
 edition = "2021"
 license = "MIT"
-rust-version = "1.95"
+rust-version = "1.98.1"
 authors = ["SWE Engineering Labs"]
 repository = "https://github.com/sweengineeringlabs/pdf-engine-presentation"
 description = "Deterministic, dependency-free Markdown presentation-deck parser and validation contracts"
